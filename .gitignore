@@ -1,0 +1,7 @@
+.env
+__pycache__/
+*.pyc
+venv/
+uploads/*.pdf
+data/faiss_index/*.faiss
+data/metadata/*.db

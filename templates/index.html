@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DocuMind AI · Ask your documents</title>
+<script>document.documentElement.dataset.theme = localStorage.getItem('dm-theme') || 'light';</script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="landing">
+<nav><span>DocuMind AI</span><a class="btn sm" href="/dashboard">Open app</a></nav>
+<section class="hero">
+  <h1>Ask your documents. Find answers instantly.</h1>
+  <p>Upload your PDFs once. Ask in plain language. Get answers drawn only from your own files, with the exact page to check.</p>
+  <div class="tags"><span class="pill">AI-powered</span><span class="pill">RAG-based</span><span class="pill">Multi-PDF</span><span class="pill">Page citations</span></div>
+  <a class="btn primary" href="/dashboard">Get started</a>
+</section>
+<section class="steps">
+  <div><h3>Upload</h3><p>Add notes, papers or manuals. They are read, split and indexed once, then stay saved.</p></div>
+  <div><h3>Ask</h3><p>Pick the documents to search and ask a question. If your files don't cover it, DocuMind says so.</p></div>
+  <div><h3>Verify</h3><p>Every answer lists its sources. Open one and the original PDF jumps to that page.</p></div>
+</section>
+</body>
+</html>

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Chat History{% endblock %}
+{% block heading %}Chat History{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Chat History</h1><div class="muted">Reopen any earlier conversation.</div></div>
+<div class="card">
+  <input type="search" id="s" placeholder="Search conversations" style="max-width:320px;margin-bottom:10px">
+  <div style="overflow-x:auto"><table><thead><tr><th>Conversation</th><th>Date</th><th>Questions</th><th>Action</th></tr></thead><tbody id="rows"></tbody></table></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+let items = [];
+async function load() { items = await api('/api/conversations'); draw(); }
+function draw() {
+  const t = $('#s').value.toLowerCase(), list = items.filter(c => c.title.toLowerCase().includes(t));
+  $('#rows').innerHTML = list.length ? list.map(c => `<tr><td class="ell" style="max-width:380px">${esc(c.title)}</td><td>${fmtDateTime(c.created_at)}</td><td>${c.questions}</td>
+    <td><div class="actions"><a class="btn sm primary" href="/chat?c=${c.id}">Reopen</a><button class="btn sm danger" onclick="del(${c.id})">Delete</button></div></td></tr>`).join('')
+    : `<tr><td colspan="4" class="empty">${items.length ? 'No conversations match.' : 'No conversations yet. Ask a question to start one.'}</td></tr>`;
+}
+async function del(id) {
+  if (!confirm('Delete this conversation and its messages?')) return;
+  await api('/api/conversations/' + id, {method: 'DELETE'}); toast('Conversation deleted', 'ok'); load();
+}
+$('#s').oninput = draw; load();
+</script>
+{% endblock %}

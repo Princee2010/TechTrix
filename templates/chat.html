@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Ask Your Documents{% endblock %}
+{% block heading %}Ask Your Documents{% endblock %}
+{% block content %}
+<div class="chat-wrap">
+  <aside class="card docpanel">
+    <h3>Documents</h3>
+    <input type="search" id="docFilter" placeholder="Search documents">
+    <label class="row small" style="gap:8px"><input type="checkbox" id="selAll" style="accent-color:var(--blue)"> Select all documents <span class="muted" id="selCount" style="margin-left:auto">0 selected</span></label>
+    <div class="doclist" id="docList"></div>
+  </aside>
+  <section class="card chatpanel">
+    <div class="chat-head"><strong>Conversation</strong>
+      <div class="row" style="gap:8px"><button class="btn sm" id="newChat">New chat</button><button class="btn sm danger" id="clearChat">Clear chat</button></div></div>
+    <div class="messages" id="messages"></div>
+    <div class="composer"><textarea id="question" rows="1" placeholder="Ask a question about the selected documents…"></textarea>
+      <button class="btn primary" id="sendBtn">Send</button></div>
+  </section>
+</div>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/chat.js') }}"></script>{% endblock %}

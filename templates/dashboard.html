@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block heading %}Dashboard{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Welcome to DocuMind AI</h1><div class="muted">Your documents, questions and recent activity.</div></div>
+<div class="grid g4">
+  <div class="card stat"><div class="n">{{ stats.documents }}</div><div class="l">Total documents</div></div>
+  <div class="card stat"><div class="n">{{ stats.pages }}</div><div class="l">Total pages processed</div></div>
+  <div class="card stat"><div class="n">{{ stats.questions }}</div><div class="l">Questions asked</div></div>
+  <div class="card stat"><div class="n">{{ stats.processed }}</div><div class="l">Documents processed</div></div>
+</div>
+<div class="row" style="margin:18px 0"><a class="btn primary" href="/documents">Upload new PDF</a><a class="btn" href="/chat">Ask AI</a><a class="btn" href="/documents">View documents</a></div>
+<div class="grid g2">
+  <div class="card"><h2>Recent documents</h2>
+    {% for d in docs %}
+    <div class="list-item"><div class="pdf-ico">PDF</div>
+      <div class="grow"><div class="ell" title="{{ d.filename }}">{{ d.filename }}</div>
+      <div class="muted small">{{ d.pages }} pages · {{ d.uploaded_at[:10] }}</div></div>
+      <span class="badge {{ d.status }}">{{ d.status|capitalize }}</span>
+      <a class="btn sm" href="/documents?open={{ d.id }}">Open</a></div>
+    {% else %}<div class="empty">No documents yet. <a href="/documents">Upload your first PDF</a>.</div>{% endfor %}
+  </div>
+  <div class="card"><h2>Recent questions</h2>
+    {% for qn in questions %}
+    <div class="list-item"><div class="grow"><div class="ell">{{ qn.content }}</div><div class="muted small">{{ qn.created_at[:16] }} UTC</div></div>
+      <a class="btn sm" href="/chat?c={{ qn.conversation_id }}">Reopen</a></div>
+    {% else %}<div class="empty">No questions yet. <a href="/chat">Ask your first one</a>.</div>{% endfor %}
+  </div>
+</div>
+{% endblock %}

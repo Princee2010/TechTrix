@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Source Explorer{% endblock %}
+{% block heading %}Source Explorer{% endblock %}
+{% block content %}
+{% if not doc %}
+<div class="page-head"><h1>Source Explorer</h1><div class="muted">Choose a document to read its original pages, or open a source from a chat answer.</div></div>
+<div class="card">
+  {% for d in docs %}<div class="list-item"><div class="pdf-ico">PDF</div><div class="grow ell">{{ d.filename }}<div class="muted small">{{ d.pages }} pages</div></div>
+    <a class="btn sm primary" href="/viewer?document_id={{ d.id }}&page=1">Open</a></div>
+  {% else %}<div class="empty">No documents yet. <a href="/documents">Upload a PDF</a>.</div>{% endfor %}
+</div>
+{% else %}
+<div class="row between" style="margin-bottom:10px"><div><h1 class="ell" style="max-width:60vw" title="{{ doc.filename }}">{{ doc.filename }}</h1><div class="muted small">{{ doc.pages }} pages</div></div>
+  <div class="row"><a class="btn" href="/chat?doc={{ doc.id }}">Back to chat</a><a class="btn" href="/api/documents/{{ doc.id }}/file?download=1">Download original PDF</a></div></div>
+<div class="viewer-bar">
+  <button class="btn sm" id="prev">◀ Prev</button>
+  <span>Page <input type="number" id="pageNum" min="1" max="{{ doc.pages }}" value="{{ page }}"> of <span id="pageTotal">{{ doc.pages }}</span></span>
+  <button class="btn sm" id="next">Next ▶</button>
+  <button class="btn sm" id="zoomOut" aria-label="Zoom out">−</button><span id="zoomLbl">100%</span><button class="btn sm" id="zoomIn" aria-label="Zoom in">+</button>
+  <input type="search" id="findBox" placeholder="Search within PDF"><button class="btn sm" id="findBtn">Find next</button><span class="muted small" id="findMsg"></span>
+</div>
+<div class="muted small" id="hlMsg" style="min-height:1.3em;margin-bottom:6px"></div>
+<div class="pdf-stage" id="stage"><div id="pageWrap"><canvas id="canvas"></canvas><div id="hl"></div></div></div>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+{% if doc %}
+<script src="{{ url_for('static', filename='pdfjs/pdf.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/highlight.js') }}"></script>
+<script>
+// Opens /viewer?document_id=X&page=N[&chunk=C]: jumps to page N (1-based, same numbering as the citations)
+// and, when chunk C is given, highlights the cited passage on that page.
+pdfjsLib.GlobalWorkerOptions.workerSrc = "{{ url_for('static', filename='pdfjs/pdf.worker.min.js') }}";
+const DOC_ID = {{ doc.id }};
+let pdf = null, pageNo = {{ page }}, zoom = 1, rendering = false, pending = null, cited = null;
+const canvas = $('#canvas'), stage = $('#stage'), hl = $('#hl');
+
+async function render(n) {
+  if (rendering) { pending = n; return; }
+  rendering = true;
+  try {
+    n = Math.max(1, Math.min(n, pdf.numPages)); pageNo = n;
+    const page = await pdf.getPage(n);
+    const base = page.getViewport({scale: 1});
+    const fit = Math.max(0.3, (stage.clientWidth - 40) / base.width);
+    const vp = page.getViewport({scale: fit * zoom});
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = vp.width * dpr; canvas.height = vp.height * dpr;
+    canvas.style.width = vp.width + 'px'; canvas.style.height = vp.height + 'px';
+    const ctx = canvas.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    await page.render({canvasContext: ctx, viewport: vp}).promise;
+    $('#pageNum').value = n; $('#zoomLbl').textContent = Math.round(zoom * 100) + '%';
+    history.replaceState(null, '', '/viewer?document_id=' + DOC_ID + '&page=' + n + (cited && cited.page === n ? '&chunk=' + cited.id : ''));
+    stage.scrollTop = 0;
+    await highlight(page, vp);
+  } catch (e) { toast('Could not display this page', 'err'); }
+  rendering = false;
+  if (pending !== null) { const p = pending; pending = null; render(p); }
+}
+
+async function highlight(page, vp) {
+  hl.innerHTML = ''; $('#hlMsg').textContent = '';
+  if (!cited || cited.page !== pageNo) return;
+  const tc = await page.getTextContent();
+  const idx = findPassageItems(tc.items, cited.text);
+  if (!idx) { $('#hlMsg').textContent = 'Page opened. The exact passage could not be located on it.'; return; }
+  let first = null;
+  idx.forEach(i => {
+    const it = tc.items[i]; if (!it.str.trim()) return;
+    const t = pdfjsLib.Util.transform(vp.transform, it.transform);
+    const h = Math.hypot(t[2], t[3]);
+    const box = document.createElement('div'); box.className = 'hl';
+    box.style.cssText = `left:${t[4]}px;top:${t[5] - h * 0.9}px;width:${it.width * vp.scale}px;height:${h * 1.2}px`;
+    hl.appendChild(box); if (!first) first = box;
+  });
+  $('#hlMsg').textContent = 'Cited passage highlighted.';
+  if (first) stage.scrollTop = Math.max(0, first.offsetTop - 90);
+}
+
+$('#prev').onclick = () => render(pageNo - 1);
+$('#next').onclick = () => render(pageNo + 1);
+$('#pageNum').onchange = e => render(parseInt(e.target.value) || 1);
+$('#zoomIn').onclick = () => { zoom = Math.min(3, zoom + .25); render(pageNo); };
+$('#zoomOut').onclick = () => { zoom = Math.max(.5, zoom - .25); render(pageNo); };
+window.addEventListener('keydown', e => { if (e.target.tagName === 'INPUT') return; if (e.key === 'ArrowRight') render(pageNo + 1); if (e.key === 'ArrowLeft') render(pageNo - 1); });
+let resizeT; window.addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(() => pdf && render(pageNo), 250); });
+
+async function find() {
+  const term = $('#findBox').value.trim().toLowerCase();
+  if (!term) return;
+  $('#findMsg').textContent = 'Searching…';
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const n = ((pageNo - 1 + i) % pdf.numPages) + 1;               // start after the current page, wrap around
+    const tc = await (await pdf.getPage(n)).getTextContent();
+    if (tc.items.map(t => t.str).join(' ').toLowerCase().includes(term)) { $('#findMsg').textContent = 'Found on page ' + n; return render(n); }
+  }
+  $('#findMsg').textContent = pdf.numPages ? 'Not found (scanned pages have no searchable text)' : '';
+}
+$('#findBtn').onclick = find;
+$('#findBox').onkeydown = e => { if (e.key === 'Enter') find(); };
+
+(async () => {
+  try {
+    const cid = new URLSearchParams(location.search).get('chunk');
+    if (cid) {
+      try { const c = await api('/api/chunks/' + cid); if (c.document_id === DOC_ID) cited = c; } catch (e) {}
+    }
+    pdf = await pdfjsLib.getDocument('/api/documents/' + DOC_ID + '/file').promise;
+    render(pageNo);
+  } catch (e) { toast('Could not load this PDF', 'err'); }
+})();
+</script>
+{% endif %}
+{% endblock %}

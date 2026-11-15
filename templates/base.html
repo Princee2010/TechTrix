@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}{% endblock %} · DocuMind AI</title>
+<script>document.documentElement.dataset.theme = localStorage.getItem('dm-theme') || 'light';</script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+{% set nav = [
+ ('WORKSPACE', [('/dashboard','Dashboard','🏠'),('/documents','My Documents','📄'),('/chat','Ask Your Documents','💬'),('/viewer','Source Explorer','🔎')]),
+ ('ACTIVITY', [('/history','Chat History','🕘'),('/analytics','Analytics','📊')]),
+ ('PREFERENCES', [('/settings','Settings','⚙️'),('/about','About Project','ℹ️')]) ] %}
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <a class="brand" href="/" style="text-decoration:none"><span class="logo">D</span> DocuMind AI</a>
+    <nav class="nav">
+      {% for group, items in nav %}
+        <div class="nav-group">{{ group }}</div>
+        {% for href, label, icon in items %}
+          <a href="{{ href }}" class="{{ 'active' if request.path == href else '' }}"><span>{{ icon }}</span>{{ label }}</a>
+        {% endfor %}
+      {% endfor %}
+    </nav>
+  </aside>
+  <div class="main">
+    <header class="topbar">
+      <button class="icon-btn menu-btn" id="menuBtn" aria-label="Menu">☰</button>
+      <strong>{% block heading %}{% endblock %}</strong>
+      <span class="sp"></span>
+      <a class="btn sm" href="/chat">🔍 Search documents</a>
+      <button class="icon-btn" id="themeBtn" title="Toggle light/dark theme" aria-label="Toggle theme">◐</button>
+      <span class="icon-btn" style="display:grid;place-items:center" title="Guest">👤</span>
+    </header>
+    <main class="content">{% block content %}{% endblock %}</main>
+  </div>
+</div>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

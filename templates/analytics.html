@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Analytics{% endblock %}
+{% block heading %}Analytics{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Analytics</h1><div class="muted">Live numbers from your library and chats, plus a retrieval test you can run yourself.</div></div>
+<div class="grid g4" id="cards"></div>
+<div class="grid g2" style="margin-top:16px">
+  <div class="card"><h2>Chat analytics</h2><div id="chatStats"></div></div>
+  <div class="card"><h2>Most asked topics</h2><div id="topics"></div></div>
+</div>
+<div class="card" style="margin-top:16px"><h2>AI performance test</h2>
+  <p class="muted small">Paste test questions with the document and page where the answer lives. Use <code>"answerable": false</code> for questions your documents can't answer (they should return no match). Pages are 1-based. Results come from your real index; nothing here is pre-filled.</p>
+  <textarea id="tests" rows="9" spellcheck="false">[
+  {"question": "What are the four states of a process?", "document": "OS_Notes.pdf", "page": 24},
+  {"question": "Who won the 2018 football world cup?", "answerable": false}
+]</textarea>
+  <div class="row" style="margin:10px 0"><button class="btn primary" id="runEval">Run evaluation</button><span class="muted small" id="evalMsg"></span></div>
+  <div id="evalOut"></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const pct = v => v === null || v === undefined ? '–' : Math.round(v * 100) + '%';
+async function load() {
+  const a = await api('/api/analytics');
+  const c = (n, l) => `<div class="card stat"><div class="n">${n}</div><div class="l">${l}</div></div>`;
+  $('#cards').innerHTML = c(a.documents, 'Total uploaded PDFs') + c(a.pages.toLocaleString(), 'Pages processed') + c(a.chunks.toLocaleString(), 'Text chunks') + c(a.vectors.toLocaleString(), 'Indexed vectors');
+  $('#chatStats').innerHTML = `<dl class="kv"><dt>Total questions</dt><dd>${a.questions}</dd><dt>Average response time</dt><dd>${a.avg_ms ? (a.avg_ms / 1000).toFixed(2) + ' s' : '–'}</dd>
+    <dt>No-match answers</dt><dd>${a.no_match}</dd><dt>Helpful / Not helpful</dt><dd>${a.helpful} / ${a.not_helpful}</dd><dt>Embedding engine</dt><dd>${esc(a.embeddings)}</dd></dl>`;
+  $('#topics').innerHTML = a.topics.length ? a.topics.map(t => `<span class="pill">${esc(t.word)} · ${t.count}</span>`).join('') : '<div class="empty">Ask some questions to see topics.</div>';
+}
+$('#runEval').onclick = async () => {
+  let tests; try { tests = JSON.parse($('#tests').value); } catch (e) { return toast('Test set is not valid JSON', 'err'); }
+  $('#evalMsg').textContent = 'Running…';
+  try {
+    const r = await api('/api/analytics/evaluate', {method: 'POST', body: {tests}});
+    $('#evalMsg').textContent = '';
+    $('#evalOut').innerHTML = `<div class="grid g4">
+      <div class="card stat"><div class="n">${pct(r.precision_at_5)}</div><div class="l">Retrieval Precision@5 (${r.n_answerable} q)</div></div>
+      <div class="card stat"><div class="n">${pct(r.recall_at_5)}</div><div class="l">Retrieval Recall@5</div></div>
+      <div class="card stat"><div class="n">${pct(r.citation_correctness)}</div><div class="l">Citation correctness (top source)</div></div>
+      <div class="card stat"><div class="n">${pct(r.no_match_accuracy)}</div><div class="l">No-match accuracy (${r.n_no_match} q)</div></div></div>
+      <div class="notice" style="margin-top:12px;background:var(--soft);color:var(--text);border-color:var(--border)"><b>Relevance threshold:</b> currently ${r.threshold.current}${r.threshold.suggested !== null ? `, suggested ${r.threshold.suggested}. Set <code>MIN_SCORE</code> in .env (or <code>FALLBACK_MIN_SCORE</code> without the model).` : '.'} ${esc(r.threshold.note || '')}</div>
+      <div style="overflow-x:auto;margin-top:12px"><table><thead><tr><th>Question</th><th>Type</th><th>Best score</th><th>Passages</th><th>Result</th></tr></thead><tbody>
+      ${r.rows.map(x => `<tr><td>${esc(x.question)}</td><td>${x.type}</td><td>${x.best_score}</td><td>${x.retrieved}</td><td>${x.type === 'no-match' ? (x.correct ? '✔ no match' : '✘ returned passages') : (x.top_is_correct ? '✔ top source correct' : x.found_expected_page ? '~ found, not top' : '✘ missed')}</td></tr>`).join('')}</tbody></table></div>`;
+  } catch (e) { $('#evalMsg').textContent = ''; toast(e.message, 'err'); }
+};
+load();
+</script>
+{% endblock %}

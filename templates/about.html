@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}About{% endblock %}
+{% block heading %}About Project{% endblock %}
+{% block content %}
+<div class="page-head"><h1>DocuMind AI</h1><div class="muted">Version {{ version }} · Ask your documents. Find answers instantly.</div></div>
+<div class="grid g2">
+  <div class="card"><h2>Problem</h2><p>Finding one fact in hundreds of PDF pages means opening files, searching keywords and reading page after page.</p>
+    <h2 style="margin-top:16px">Objective</h2><p>Answer questions from the user's own PDFs, cite the exact page, and say so plainly when the documents don't contain the answer.</p></div>
+  <div class="card"><h2>How it works</h2>
+    <ol style="padding-left:18px;margin:0"><li>PyMuPDF reads each PDF page by page.</li><li>Text is split into chunks that stay within a single page.</li><li>Sentence Transformers turn chunks into embeddings, stored in FAISS.</li><li>A question is embedded and matched against the selected documents.</li><li>If no passage passes the relevance threshold, no answer is generated.</li><li>Otherwise Gemini answers from those passages only, and each source links to its PDF page.</li></ol></div>
+</div>
+<div class="card" style="margin-top:16px"><h2>Technology</h2>
+  <span class="pill">Flask</span><span class="pill">HTML · CSS · JavaScript</span><span class="pill">PyMuPDF</span><span class="pill">Sentence Transformers</span><span class="pill">FAISS</span><span class="pill">Gemini API</span><span class="pill">SQLite</span><span class="pill">PDF.js</span><span class="pill">Tesseract OCR (optional)</span></div>
+<div class="card" style="margin-top:16px"><h2>Architecture</h2>
+<pre>Browser (HTML/CSS/JS, PDF.js)
+   │  JSON over HTTP
+Flask  ── routes/ ── services/
+   ├─ PyMuPDF → text_chunker → Sentence Transformers → FAISS (data/faiss_index)
+   ├─ retrieval_service (top-k + relevance threshold)
+   ├─ answer_service → Gemini
+   └─ SQLite (documents, chunks, chats)  +  uploads/ (original PDFs)</pre></div>
+<div class="card" style="margin-top:16px"><h2>Developer</h2><p><b>{{ dev_name }}</b></p><p class="muted">{{ dev_details }}</p></div>
+{% endblock %}
